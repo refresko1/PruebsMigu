@@ -1,0 +1,377 @@
+//+------------------------------------------------------------------+
+//|                                  G8_Trader_Universal_O_V1.11.mq4 |
+//|                           MQLRefresko---MqlRefresko.blogspot.com |
+//|                                         MqlRefresko.blogspot.com |
+//+------------------------------------------------------------------+
+#property copyright "MQLRefresko---MqlRefresko.blogspot.com"
+#property link      "MqlRefresko.blogspot.com"
+#property version   "1.11"
+#property strict
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+enum MODE_INDI
+  {
+   Trend_Following=0,
+   Reversal=1,
+  };
+  
+enum MODE_CANDLE
+{
+Bar_0=0,
+Bar_1=1
+};
+//+------------------------------------------------------------------+
+//|                      INPUTS                                      |
+//+------------------------------------------------------------------+
+input int      Ind_Period_G8T=20;
+input double   CrossAbove_ValueIndi_G8T=0;
+input double   CrossBelow_ValueIndi_G8T=0;
+input  MODE_CANDLE Candle_Trade=Bar_1;
+input MODE_INDI MODE_CROSS_TRADE_G8T=Trend_Following;
+input string   CONFIG_TRADES="***CONFIG TRADES***";
+input double   Lots_G8T=0.01;
+input double   Pips_TP_G8T=0;
+input double   Pips_SL_G8t=0;
+input bool     Allow_Close_ContraOrder_G8T=True;
+input string   CONFIG_TRAILING="***CONFIG TRAILING***";
+input bool     Allow_Trailing_G8T=False;
+input double   Pips_Distance_Activation_G8T=10;
+input double   Pips_Trailing_G8T=10;
+input string   CONFIG_EQUITY="***CONFIG EQUITY***";
+input double   Equity_Pair_G8T=100;
+input bool     Trailing_Equity_Par_G8T=False;
+input double   Pips_Trailing_EquityPar_G8T=10;
+//+------------------------------------------------------------------+
+//|                       GENERAL VARIABLES                          |
+//+------------------------------------------------------------------+
+string Comentario="G8T_Univers";
+string PrefijoG8T="G8T";
+int TicketG8T_B,TicketG8T_S,TicketG8T_BS,TicketG8T_SS,TicketG8T_BL,TicketG8T_SL,TicketG8T_TT;
+int Magic=788865611;
+int Mult=1;
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+  {
+//---
+   if(Digits==3 || Digits==5)
+     {
+      Mult=10;
+     }
+   if(IsTesting())Comentario="G8T_TEST";
+
+   if(!GlobalVariableCheck(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T"))GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",0.001);
+
+//---
+   return(INIT_SUCCEEDED);
+  }
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+//---
+   int GVTT=GlobalVariablesTotal();
+   GVTT=GlobalVariablesTotal();
+
+   for(int G8td=GVTT-1;G8td>=0;G8td--)
+     {
+      string NombreGlobalVariable4=GlobalVariableName(G8td);
+      string Seminombre=StringSubstr(NombreGlobalVariable4,0,8);
+      if(Seminombre=="G8T_TEST")
+        {
+         GlobalVariableDel(NombreGlobalVariable4);
+        }
+     }
+  }
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void start()
+  {
+//---
+if (Allow_Trailing_G8T)TRAILING_G8T();
+if (Equity_Pair_G8T>0)EQUITY_PAR_G8T();
+   //double ValIndi0=NormalizeDouble(iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,0),4);
+   double ValIndi1=iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,Candle_Trade);
+   double ValIndi2=iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,Candle_Trade+1);
+
+   if(MODE_CROSS_TRADE_G8T==Trend_Following)
+     {
+      if(ValIndi2<CrossBelow_ValueIndi_G8T && ValIndi1>CrossBelow_ValueIndi_G8T)
+        {
+         CALCULATEDORDERS_G8T();
+         if(TicketG8T_S>0 && Allow_Close_ContraOrder_G8T)
+           {
+            CIERRE_ALL_G8T(0,1,0);
+            Print("Cierre de Ventas por cruce");
+           }
+         if(TicketG8T_B==0)TRADE_DIRECTA_G8T(Lots_G8T,0,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);// COMPRA
+        }
+
+      if(ValIndi2>CrossAbove_ValueIndi_G8T && ValIndi1<CrossAbove_ValueIndi_G8T)
+        {
+         CALCULATEDORDERS_G8T();
+         if(TicketG8T_B>0 && Allow_Close_ContraOrder_G8T)
+           {
+            CIERRE_ALL_G8T(1,0,0);
+            Print("Cierre de Compras por cruce");
+           }
+         if(TicketG8T_S==0)TRADE_DIRECTA_G8T(Lots_G8T,1,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);//VENTA
+        }
+     }
+
+   if(MODE_CROSS_TRADE_G8T==Reversal)
+     {
+      if(ValIndi2<CrossAbove_ValueIndi_G8T && ValIndi1>CrossAbove_ValueIndi_G8T)
+        {
+         CALCULATEDORDERS_G8T();
+         if(TicketG8T_B>0 && Allow_Close_ContraOrder_G8T)
+           {
+            CIERRE_ALL_G8T(1,0,0);
+            Print("Cierre de Compras por cruce");
+           }
+         if(TicketG8T_S==0) TRADE_DIRECTA_G8T(Lots_G8T,1,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);// VENTA
+        }
+
+      if(ValIndi2>CrossBelow_ValueIndi_G8T && ValIndi1<CrossBelow_ValueIndi_G8T)
+        {
+         CALCULATEDORDERS_G8T();
+         if(TicketG8T_S>0 && Allow_Close_ContraOrder_G8T)
+           {
+            CIERRE_ALL_G8T(0,1,0);
+            Print("Cierre de Ventas por cruce");
+           }
+         if(TicketG8T_B==0) TRADE_DIRECTA_G8T(Lots_G8T,0,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);//COMPRA
+        }
+     }
+  }
+//+------------------------------------------------------------------+
+//------------------CALCULAR ORDENES G8T  ----||
+//                                            ||
+//--------------------------------------------||
+void CALCULATEDORDERS_G8T()
+  {
+   TicketG8T_B=0; TicketG8T_S=0; TicketG8T_BS=0; TicketG8T_SS=0; TicketG8T_BL=0; TicketG8T_SL=0; TicketG8T_TT=0;
+   double TotalCompras=0;
+   double TotalVentas=0;
+
+   for(int o=OrdersTotal()-1;o>=0;o--)
+     {
+      if(!OrderSelect(o,SELECT_BY_POS,MODE_TRADES))Print("No se pudo Seleccionar la orden en la parte del cod Calculatedor_G8Ty # 1");
+      else
+        {
+         if(OrderSymbol()==Symbol() && OrderMagicNumber()==Magic && StringSubstr(OrderComment(),0,3)==PrefijoG8T)
+           {
+            if(OrderType()==OP_BUY){TicketG8T_B+=1;TicketG8T_TT+=1;TotalCompras+=(OrderProfit()+OrderSwap()+OrderCommission());}
+            if(OrderType()==OP_SELL){TicketG8T_S+=1;TicketG8T_TT+=1;TotalVentas+=(OrderProfit()+OrderSwap()+OrderCommission());}
+            if(OrderType()==OP_BUYSTOP){TicketG8T_BS+=1;}
+            if(OrderType()==OP_SELLSTOP){TicketG8T_SS+=1;}
+            if(OrderType()==OP_BUYLIMIT){TicketG8T_BL+=1;}
+            if(OrderType()==OP_SELLLIMIT){TicketG8T_SL+=1;}
+           }
+        }
+     }
+
+   if(TicketG8T_B==0 && TicketG8T_S==0)GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",0.001);
+  }
+//+------------------------------------------------------------------+
+////---------------------CIERRE ALLLLLLLL- G8T------||
+//                                                   ||
+//---------------------------------------------------||
+void CIERRE_ALL_G8T(char CMP,char VNT,char PDT)
+  {//poner 1 a la opcion que se quiere cerrar
+   for(int ocat=OrdersTotal()-1;ocat>=0;ocat--)
+     {
+      if(!OrderSelect(ocat,SELECT_BY_POS,MODE_TRADES))Print("Error en la seleccion de Orden,CIERREALL G8T 1");
+      else
+        {
+         if(OrderSymbol()==Symbol() && OrderMagicNumber()==Magic && StringSubstr(OrderComment(),0,3)==PrefijoG8T)
+           {
+            if(OrderType()==OP_BUY && CMP==1)
+              {
+               if(!OrderClose(OrderTicket(),OrderLots(),Bid,0,Gray))Print("Error en el cierre de Orden,CIERRE_ALL G8T 2");
+              }
+
+            if(OrderType()==OP_SELL && VNT==1)
+              {
+               if(!OrderClose(OrderTicket(),OrderLots(),Ask,0,Gray))Print("Error en el cierre  de Orden,CIERRE_ALL G8T 3");
+              }
+
+            if((OrderType()==OP_BUYSTOP) || (OrderType()==OP_SELLSTOP) || (OrderType()==OP_BUYLIMIT) || (OrderType()==OP_SELLLIMIT))
+              {
+               if(PDT==1)
+                 {
+                  if(!OrderDelete(OrderTicket()))Print("Error en la Eliminacion de Orden, CIERRE_ALL G8T 4");
+                 }
+              }
+           }
+        }
+     }
+  }
+//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|    COMPRA DIRECTA G8T                                           |
+//+------------------------------------------------------------------+
+void TRADE_DIRECTA_G8T(double Lotes,char TypeTrade,double SL,double TP,string PreNombre)
+  {
+   double Prec_Trade_Dir=0,SL_Trade_Dire=0,TP_Trade_Dire=0;
+   string PosNombre;
+   color ColorTrade=clrNONE;
+
+   if(TypeTrade==0)
+     {
+      Prec_Trade_Dir=Ask;
+      SL_Trade_Dire=Prec_Trade_Dir-(SL*Point);
+      TP_Trade_Dire=Prec_Trade_Dir+(TP*Point);
+      PosNombre="_Com_";
+     }
+
+   if(TypeTrade==1)
+     {
+      Prec_Trade_Dir=Bid;
+      SL_Trade_Dire=Prec_Trade_Dir+(SL*Point);
+      TP_Trade_Dire=Prec_Trade_Dir-(TP*Point);
+      PosNombre="_Ven_";
+     }
+
+   if(SL==0)SL_Trade_Dire=0;
+   if(TP==0)TP_Trade_Dire=0;
+   int TradeDIRECTo_=OrderSend(Symbol(),TypeTrade,Lotes,Prec_Trade_Dir,10,0,0,PreNombre+PosNombre+Comentario,Magic,0,ColorTrade);
+   if(!OrderSelect(TradeDIRECTo_,SELECT_BY_TICKET))Print("Error en la seleccion de Orden, TradeDirecto G8T code1");
+   else
+     {
+      if(SL_Trade_Dire>0 || TP_Trade_Dire>0)
+        {
+         if(!OrderModify(OrderTicket(),OrderOpenPrice(),SL_Trade_Dire,TP_Trade_Dire,0))
+           {
+            Print("Error Numero ",GetLastError()," al hacer la modificacion TradeDirectoHOLY del Ticket ",OrderTicket());
+           }
+        }
+     }
+  }
+//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|              TRAILING G8T                                       |
+//+------------------------------------------------------------------+
+void TRAILING_G8T()
+  {
+   for(int oG=OrdersTotal()-1;oG>=0;oG--)
+     {
+      if(!OrderSelect(oG,SELECT_BY_POS,MODE_TRADES))Print("No se pudo Seleccionar la orden en la parte del code Trailing G8T # 1");
+      else
+        {
+         if(OrderSymbol()==Symbol() && OrderMagicNumber()==Magic && StringSubstr(OrderComment(),0,3)==PrefijoG8T)
+           {
+            if(OrderType()==0)
+              {
+               if(((Bid-OrderOpenPrice()>((Pips_Distance_Activation_G8T+Pips_Trailing_G8T)*Mult)*Point) && (Bid-OrderStopLoss()>(Pips_Trailing_G8T*Mult)*Point))
+                  || ((Bid-OrderOpenPrice()>((Pips_Distance_Activation_G8T+Pips_Trailing_G8T)*Mult)*Point) && !OrderStopLoss()))
+                 {
+                  double SLT=NormalizeDouble(Bid-((Pips_Trailing_G8T*Mult)*Point),Digits);
+                  if(SLT!=OrderStopLoss() && SLT!=0)
+                    {
+                     if(!OrderModify(OrderTicket(),OrderOpenPrice(),SLT,OrderTakeProfit(),0))Print("No se puede modificar la Orden en el Trailing G8T# 2 ",OrderStopLoss(),"  ",SLT);
+                    }
+                 }
+              }
+
+            if(OrderType()==1)
+              {
+               if(((OrderOpenPrice()-Ask>((Pips_Distance_Activation_G8T+Pips_Trailing_G8T)*Mult)*Point) && (OrderStopLoss()-Ask>(Pips_Trailing_G8T*Mult)*Point))
+                  || ((OrderOpenPrice()-Ask>((Pips_Distance_Activation_G8T+Pips_Trailing_G8T)*Mult)*Point) && !OrderStopLoss()))
+                 {
+                  double SLTv=NormalizeDouble(Ask+((Pips_Trailing_G8T*Mult)*Point),Digits);
+                  if(SLTv!=OrderStopLoss() && SLTv!=0)
+                    {
+                     if(!OrderModify(OrderTicket(),OrderOpenPrice(),SLTv,OrderTakeProfit(),0))Print("No se puede modificar la Orden en el Trailing G8T # 3 ",OrderStopLoss(),"  ",SLTv);
+                    }
+                 }
+              }
+           }
+        }
+     }
+  }
+//+------------------------------------------------------------------+
+//|                EQUITY_PAR  G8T                                   |
+//+------------------------------------------------------------------+
+void EQUITY_PAR_G8T()
+  {  
+   double ProfitDelParG8=0;
+   double LotesCpG8=0;
+   double LotesVpG8=0;
+   for(int epG8=OrdersTotal()-1;epG8>=0;epG8--)
+     {
+      if(!OrderSelect(epG8,SELECT_BY_POS,MODE_TRADES))Print("No se pudo Seleccionar la orden en la parte del code # EquityPar G8T 1");
+      else
+        {
+         if(OrderSymbol()==Symbol() && OrderMagicNumber()==Magic)
+           {
+            ProfitDelParG8+=OrderProfit()+OrderCommission()+OrderSwap();
+
+            if(OrderType()==0)
+              {
+               LotesCpG8+=OrderLots();
+              }
+
+            if(OrderType()==1)
+              {
+               LotesVpG8+=OrderLots();
+              }
+           }
+        }
+     }
+
+
+   if(ProfitDelParG8>0 && ProfitDelParG8>Equity_Pair_G8T)
+     {
+
+      if(GlobalVariableGet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T")==0.001)
+        {
+         if(LotesCpG8>LotesVpG8)GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",NormalizeDouble(Bid,Digits));
+         if(LotesCpG8<LotesVpG8)GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",NormalizeDouble(Ask,Digits));
+        }
+      if((Trailing_Equity_Par_G8T==False) || (Trailing_Equity_Par_G8T==True && Pips_Trailing_EquityPar_G8T<=0))
+        {
+         CIERRE_ALL_G8T(1,1,1);
+         Print("Cierre por equity G8T Inicial");
+         return;
+        }
+
+      if(Trailing_Equity_Par_G8T==True && Pips_Trailing_EquityPar_G8T>0 && GlobalVariableGet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T")>0.001)
+        {
+         if(LotesCpG8>LotesVpG8)
+           {
+            if((Bid-GlobalVariableGet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T"))>((Pips_Trailing_EquityPar_G8T*Mult)*Point))
+              {
+               GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",NormalizeDouble(Bid-((Pips_Trailing_EquityPar_G8T*Mult)*Point),Digits));
+              }
+
+            if(Bid<GlobalVariableGet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T"))
+              {
+               GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",0.001);
+               Print("la Ganancia del par G8T es ",ProfitDelParG8," la base del cierre, dependiendo del lotaje era ",Equity_Pair_G8T);
+               CIERRE_ALL_G8T(1,1,1);
+              }
+           }
+
+         if(LotesVpG8>LotesCpG8)
+           {
+            if(GlobalVariableGet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T")-Ask>((Pips_Trailing_EquityPar_G8T*Mult)*Point))
+              {
+               GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",NormalizeDouble(Ask+((Pips_Trailing_EquityPar_G8T*Mult)*Point),Digits));
+              }
+
+            if(Ask>GlobalVariableGet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T"))
+              {
+               GlobalVariableSet(Comentario+"_"+Symbol()+"_QuiebreEquityParG8T",0.001);
+               Print("la Ganancia del par G8T es ",ProfitDelParG8,"  la base del cierre, dependiendo del lotaje era  ",Equity_Pair_G8T);
+               CIERRE_ALL_G8T(1,1,1);
+              }
+           }
+        }
+     }
+  }
+//+------------------------------------------------------------------+
