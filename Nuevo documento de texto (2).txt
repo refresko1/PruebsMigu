@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//|                                  G8_Trader_Universal_O_V1.11.mq4 |
+//|                                  G8_Trader_Universal_O_V1.12.mq4 |
 //|                           MQLRefresko---MqlRefresko.blogspot.com |
 //|                                         MqlRefresko.blogspot.com |
 //+------------------------------------------------------------------+
 #property copyright "MQLRefresko---MqlRefresko.blogspot.com"
 #property link      "MqlRefresko.blogspot.com"
-#property version   "1.11"
+#property version   "1.12"
 #property strict
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -20,6 +20,12 @@ enum MODE_CANDLE
 {
 Bar_0=0,
 Bar_1=1
+};
+
+enum MODE_Horary
+{
+Off_And_Close_ALL=0,
+Off_And_Allow_Trailing_or_Equity=1
 };
 //+------------------------------------------------------------------+
 //|                      INPUTS                                      |
@@ -42,6 +48,13 @@ input string   CONFIG_EQUITY="***CONFIG EQUITY***";
 input double   Equity_Pair_G8T=100;
 input bool     Trailing_Equity_Par_G8T=False;
 input double   Pips_Trailing_EquityPar_G8T=10;
+
+input string   MoneyManagementG8T="** SET MONEYMANAGEMENT  **";
+input bool     AllowMoneyManagement_G8T=false;
+input double   Initial_Deposit_G8T=5000;
+input double   Percent_Step_G8T=10;    //%Prrcent_Step_G8T  
+input double   Lots_Increment_G8T=0.01;
+
 //+------------------------------------------------------------------+
 //|                       GENERAL VARIABLES                          |
 //+------------------------------------------------------------------+
@@ -239,7 +252,7 @@ void TRADE_DIRECTA_G8T(double Lotes,char TypeTrade,double SL,double TP,string Pr
 
    if(SL==0)SL_Trade_Dire=0;
    if(TP==0)TP_Trade_Dire=0;
-   int TradeDIRECTo_=OrderSend(Symbol(),TypeTrade,Lotes,Prec_Trade_Dir,10,0,0,PreNombre+PosNombre+Comentario,Magic,0,ColorTrade);
+   int TradeDIRECTo_=OrderSend(Symbol(),TypeTrade,LOTAJE_G8T(Lotes),Prec_Trade_Dir,10,0,0,PreNombre+PosNombre+Comentario,Magic,0,ColorTrade);
    if(!OrderSelect(TradeDIRECTo_,SELECT_BY_TICKET))Print("Error en la seleccion de Orden, TradeDirecto G8T code1");
    else
      {
@@ -375,3 +388,19 @@ void EQUITY_PAR_G8T()
      }
   }
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|                       LOTAJE G8T                                 |
+//+------------------------------------------------------------------+
+double LOTAJE_G8T(double prevLots)
+  {
+   if(AllowMoneyManagement_G8T && AccountEquity()>Initial_Deposit_G8T)
+     {
+      double PorcentajeGanado=((AccountEquity()-Initial_Deposit_G8T)*100)/Initial_Deposit_G8T;
+      int VecesMult=(int)MathFloor(PorcentajeGanado/Percent_Step_G8T);
+      double lotsFinal=NormalizeDouble(prevLots+(VecesMult*Lots_Increment_G8T),2);
+      if(lotsFinal>MarketInfo(NULL,MODE_MAXLOT))lotsFinal=MarketInfo(NULL,MODE_MAXLOT);
+      return lotsFinal;
+     }
+   else
+      return prevLots;
+  }
