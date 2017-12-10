@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//|                                  G8_Trader_Universal_O_V1.12.mq4 |
+//|                                  G8_Trader_Universal_O_V1.13.mq4 |
 //|                           MQLRefresko---MqlRefresko.blogspot.com |
 //|                                         MqlRefresko.blogspot.com |
 //+------------------------------------------------------------------+
 #property copyright "MQLRefresko---MqlRefresko.blogspot.com"
 #property link      "MqlRefresko.blogspot.com"
-#property version   "1.12"
+#property version   "1.13"
 #property strict
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -15,18 +15,22 @@ enum MODE_INDI
    Trend_Following=0,
    Reversal=1,
   };
-  
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 enum MODE_CANDLE
-{
-Bar_0=0,
-Bar_1=1
-};
-
+  {
+   Bar_0=0,
+   Bar_1=1
+  };
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
 enum MODE_Horary
-{
-Off_And_Close_ALL=0,
-Off_And_Allow_Trailing_or_Equity=1
-};
+  {
+   Off_And_Close_ALL=0,
+   Off_And_Allow_Trailing_or_Equity=1
+  };
 //+------------------------------------------------------------------+
 //|                      INPUTS                                      |
 //+------------------------------------------------------------------+
@@ -55,6 +59,15 @@ input double   Initial_Deposit_G8T=5000;
 input double   Percent_Step_G8T=10;    //%Prrcent_Step_G8T  
 input double   Lots_Increment_G8T=0.01;
 
+input string   HOURS_OFF_SET="SET HOURS in format 'HH:MM:SS' ";
+input bool     Allow_off_Horary1=false;
+input string   Start_Off_Horary1="10:20:00";
+input string   End_Off_Horary1="11:30:00";
+input bool     Allow_off_Horary2=false;
+input string   Start_Off_Horary2="15:20:00";
+input string   End_Off_Horary2="16:30:00";
+input  MODE_Horary System_Horary=Off_And_Close_ALL;
+
 //+------------------------------------------------------------------+
 //|                       GENERAL VARIABLES                          |
 //+------------------------------------------------------------------+
@@ -63,6 +76,8 @@ string PrefijoG8T="G8T";
 int TicketG8T_B,TicketG8T_S,TicketG8T_BS,TicketG8T_SS,TicketG8T_BL,TicketG8T_SL,TicketG8T_TT;
 int Magic=788865611;
 int Mult=1;
+
+MqlDateTime strStar1,strEnd1,strStar2,strEnd2;
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -105,59 +120,153 @@ void OnDeinit(const int reason)
 void start()
   {
 //---
-if (Allow_Trailing_G8T)TRAILING_G8T();
-if (Equity_Pair_G8T>0)EQUITY_PAR_G8T();
-   //double ValIndi0=NormalizeDouble(iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,0),4);
-   double ValIndi1=iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,Candle_Trade);
-   double ValIndi2=iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,Candle_Trade+1);
-
-   if(MODE_CROSS_TRADE_G8T==Trend_Following)
+/*
+datetime TimeStart1=StringToTime(Start_Off_Horary1);
+datetime TimeEnd1=StringToTime(End_Off_Horary1);
+datetime TimeStart2=StringToTime(Start_Off_Horary2);
+datetime TimeEnd2=StringToTime(End_Off_Horary2);
+*/
+   bool PermisoEA=true;
+   if((Allow_off_Horary1 && System_Horary==Off_And_Allow_Trailing_or_Equity) || (Allow_off_Horary2 && System_Horary==Off_And_Allow_Trailing_or_Equity) || (!Allow_off_Horary1 || !Allow_off_Horary2))
      {
-      if(ValIndi2<CrossBelow_ValueIndi_G8T && ValIndi1>CrossBelow_ValueIndi_G8T)
-        {
-         CALCULATEDORDERS_G8T();
-         if(TicketG8T_S>0 && Allow_Close_ContraOrder_G8T)
-           {
-            CIERRE_ALL_G8T(0,1,0);
-            Print("Cierre de Ventas por cruce");
-           }
-         if(TicketG8T_B==0)TRADE_DIRECTA_G8T(Lots_G8T,0,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);// COMPRA
-        }
+      if(Allow_Trailing_G8T)TRAILING_G8T();
+      if(Equity_Pair_G8T>0)EQUITY_PAR_G8T();
+     }
 
-      if(ValIndi2>CrossAbove_ValueIndi_G8T && ValIndi1<CrossAbove_ValueIndi_G8T)
+   if(Allow_off_Horary1)
+     {
+      datetime TimeStart1=StringToTime(Start_Off_Horary1);
+      datetime TimeEnd1=StringToTime(End_Off_Horary1);
+      TimeToStruct(TimeStart1,strStar1);
+      TimeToStruct(TimeEnd1,strEnd1);
+
+      if((strStar1.hour<strEnd1.hour) || (strStar1.hour==strEnd1.hour && strStar1.min<strEnd1.min))//Normal
         {
-         CALCULATEDORDERS_G8T();
-         if(TicketG8T_B>0 && Allow_Close_ContraOrder_G8T)
+         if((Hour()==strStar1.hour && Minute()==strStar1.min && Seconds()>strStar1.sec) || (Hour()==strStar1.hour && Minute()>strStar1.min) || (Hour()>strStar1.hour))
            {
-            CIERRE_ALL_G8T(1,0,0);
-            Print("Cierre de Compras por cruce");
+            if((Hour()==strEnd1.hour && Minute()==strEnd1.min && Seconds()<strEnd1.sec) || (Hour()==strEnd1.hour && Minute()<strEnd1.min) || (Hour()<strEnd1.hour))
+              {
+               PermisoEA=False;
+              }
            }
-         if(TicketG8T_S==0)TRADE_DIRECTA_G8T(Lots_G8T,1,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);//VENTA
+        }
+      if((strStar1.hour>strEnd1.hour) || (strStar1.hour==strEnd1.hour && strStar1.min>strEnd1.min))//Inicio mayor que fin
+        {
+         if((Hour()==strStar1.hour && Minute()==strStar1.min && Seconds()>strStar1.sec) || (Hour()==strStar1.hour && Minute()>strStar1.min) || (Hour()>strStar1.hour))
+           {
+            if((Hour()<23) || (Hour()==23 && Minute()<59) || (Hour()==23 && Minute()==59 && Seconds()<59))
+              {
+               PermisoEA=False;
+              }
+           }
+         if((Hour()>00) || (Hour()==00 && Minute()>00) || (Hour()==00 && Minute()==00 && Seconds()>=00))
+           {
+            if((Hour()==strEnd1.hour && Minute()==strEnd1.min && Seconds()<strEnd1.sec) || (Hour()==strEnd1.hour && Minute()<strEnd1.min) || (Hour()<strEnd1.hour))
+              {
+               PermisoEA=False;
+              }
+           }
         }
      }
 
-   if(MODE_CROSS_TRADE_G8T==Reversal)
+   if(Allow_off_Horary2)
      {
-      if(ValIndi2<CrossAbove_ValueIndi_G8T && ValIndi1>CrossAbove_ValueIndi_G8T)
+      datetime TimeStart2=StringToTime(Start_Off_Horary2);
+      datetime TimeEnd2=StringToTime(End_Off_Horary2);
+      TimeToStruct(TimeStart2,strStar2);
+      TimeToStruct(TimeEnd2,strEnd2);
+
+      if((strStar2.hour<strEnd2.hour) || (strStar2.hour==strEnd2.hour && strStar2.min<strEnd2.min))//Normal
         {
-         CALCULATEDORDERS_G8T();
-         if(TicketG8T_B>0 && Allow_Close_ContraOrder_G8T)
+         if((Hour()==strStar2.hour && Minute()==strStar2.min && Seconds()>strStar2.sec) || (Hour()==strStar2.hour && Minute()>strStar2.min) || (Hour()>strStar2.hour))
            {
-            CIERRE_ALL_G8T(1,0,0);
-            Print("Cierre de Compras por cruce");
+            if((Hour()==strEnd2.hour && Minute()==strEnd2.min && Seconds()<strEnd2.sec) || (Hour()==strEnd2.hour && Minute()<strEnd2.min) || (Hour()<strEnd2.hour))
+              {
+               PermisoEA=False;
+              }
            }
-         if(TicketG8T_S==0) TRADE_DIRECTA_G8T(Lots_G8T,1,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);// VENTA
+        }
+      if((strStar2.hour>strEnd2.hour) || (strStar2.hour==strEnd2.hour && strStar2.min>strEnd2.min))//Inicio mayor que fin
+        {
+         if((Hour()==strStar2.hour && Minute()==strStar2.min && Seconds()>strStar2.sec) || (Hour()==strStar2.hour && Minute()>strStar2.min) || (Hour()>strStar2.hour))
+           {
+            if((Hour()<23) || (Hour()==23 && Minute()<59) || (Hour()==23 && Minute()==59 && Seconds()<59))
+              {
+               PermisoEA=False;
+              }
+           }
+         if((Hour()>00) || (Hour()==00 && Minute()>00) || (Hour()==00 && Minute()==00 && Seconds()>=00))
+           {
+            if((Hour()==strEnd2.hour && Minute()==strEnd2.min && Seconds()<strEnd2.sec) || (Hour()==strEnd2.hour && Minute()<strEnd2.min) || (Hour()<strEnd2.hour))
+              {
+               PermisoEA=False;
+              }
+           }
+        }
+     }
+//double ValIndi0=NormalizeDouble(iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,0),4);
+   if(PermisoEA)
+     {
+      Comment("");
+      double ValIndi1=iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,Candle_Trade);
+      double ValIndi2=iCustom(NULL,0,"UniversalOscillator_Ref",Ind_Period_G8T,0,Candle_Trade+1);
+
+      if(MODE_CROSS_TRADE_G8T==Trend_Following)
+        {
+         if(ValIndi2<CrossBelow_ValueIndi_G8T && ValIndi1>CrossBelow_ValueIndi_G8T)
+           {
+            CALCULATEDORDERS_G8T();
+            if(TicketG8T_S>0 && Allow_Close_ContraOrder_G8T)
+              {
+               CIERRE_ALL_G8T(0,1,0);
+               Print("Cierre de Ventas por cruce");
+              }
+            if(TicketG8T_B==0)TRADE_DIRECTA_G8T(Lots_G8T,0,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);// COMPRA
+           }
+
+         if(ValIndi2>CrossAbove_ValueIndi_G8T && ValIndi1<CrossAbove_ValueIndi_G8T)
+           {
+            CALCULATEDORDERS_G8T();
+            if(TicketG8T_B>0 && Allow_Close_ContraOrder_G8T)
+              {
+               CIERRE_ALL_G8T(1,0,0);
+               Print("Cierre de Compras por cruce");
+              }
+            if(TicketG8T_S==0)TRADE_DIRECTA_G8T(Lots_G8T,1,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);//VENTA
+           }
         }
 
-      if(ValIndi2>CrossBelow_ValueIndi_G8T && ValIndi1<CrossBelow_ValueIndi_G8T)
+      if(MODE_CROSS_TRADE_G8T==Reversal)
         {
-         CALCULATEDORDERS_G8T();
-         if(TicketG8T_S>0 && Allow_Close_ContraOrder_G8T)
+         if(ValIndi2<CrossAbove_ValueIndi_G8T && ValIndi1>CrossAbove_ValueIndi_G8T)
            {
-            CIERRE_ALL_G8T(0,1,0);
-            Print("Cierre de Ventas por cruce");
+            CALCULATEDORDERS_G8T();
+            if(TicketG8T_B>0 && Allow_Close_ContraOrder_G8T)
+              {
+               CIERRE_ALL_G8T(1,0,0);
+               Print("Cierre de Compras por cruce");
+              }
+            if(TicketG8T_S==0) TRADE_DIRECTA_G8T(Lots_G8T,1,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);// VENTA
            }
-         if(TicketG8T_B==0) TRADE_DIRECTA_G8T(Lots_G8T,0,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);//COMPRA
+
+         if(ValIndi2>CrossBelow_ValueIndi_G8T && ValIndi1<CrossBelow_ValueIndi_G8T)
+           {
+            CALCULATEDORDERS_G8T();
+            if(TicketG8T_S>0 && Allow_Close_ContraOrder_G8T)
+              {
+               CIERRE_ALL_G8T(0,1,0);
+               Print("Cierre de Ventas por cruce");
+              }
+            if(TicketG8T_B==0) TRADE_DIRECTA_G8T(Lots_G8T,0,Pips_SL_G8t*Mult,Pips_TP_G8T*Mult,PrefijoG8T);//COMPRA
+           }
+        }
+     }
+   else
+     {
+      Comment("EA DETENIDOOOOOO");
+      if(System_Horary==Off_And_Close_ALL)
+        {
+         CIERRE_ALL_G8T(1,1,1);
         }
      }
   }
@@ -224,7 +333,7 @@ void CIERRE_ALL_G8T(char CMP,char VNT,char PDT)
         }
      }
   }
-//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+  
 //+------------------------------------------------------------------+
 //|    COMPRA DIRECTA G8T                                           |
 //+------------------------------------------------------------------+
@@ -311,7 +420,7 @@ void TRAILING_G8T()
 //|                EQUITY_PAR  G8T                                   |
 //+------------------------------------------------------------------+
 void EQUITY_PAR_G8T()
-  {  
+  {
    double ProfitDelParG8=0;
    double LotesCpG8=0;
    double LotesVpG8=0;
@@ -336,7 +445,6 @@ void EQUITY_PAR_G8T()
            }
         }
      }
-
 
    if(ProfitDelParG8>0 && ProfitDelParG8>Equity_Pair_G8T)
      {
@@ -404,3 +512,4 @@ double LOTAJE_G8T(double prevLots)
    else
       return prevLots;
   }
+//+------------------------------------------------------------------+
