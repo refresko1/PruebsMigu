@@ -1,0 +1,435 @@
+//+------------------------------------------------------------------+
+//|                                             Ref_Monserrate_R.mq4 |
+//|                        Copyright 2017, MetaQuotes Software Corp. |
+//|                                             https://www.mql5.com |
+//+------------------------------------------------------------------+
+#property copyright "Copyright 2017, MetaQuotes Software Corp."
+#property link      "https://www.mql5.com"
+#property version   "1.00"
+#property strict
+#include <FuncsPPal.mqh>
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+/*
+
+*/
+enum ENUM_SL
+  {
+   SL_pips=0,
+   SL_MAX_MIN=1
+  };
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+enum Enum_MODO_Busqueda
+  {
+   Modo_only_Close=0,
+   Modo_Close_y_Puntas=1
+  };
+
+//+------------------------------------------------------------------+
+//|                   INPUTS                                         |
+//+------------------------------------------------------------------+
+
+input int PeriodoMA=34;
+input double Lots=1;
+input double PuntosTP=0;
+input ENUM_SL ModoSL=SL_pips;
+input double PuntosSL=0;
+input int Bars_MAX_MIN=40;
+input string SET_TRAILING="*** SET TRAILING ";
+input bool AllowTrailing=true;
+input double PuntosActivacion=100;
+input double PuntosTrailing=200;
+input double PuntosDistanciaActivaBreakEven=380;
+input double PuntosBE=50;
+
+input string ____="****";
+input int MaxTrades=3;
+input int Velas_Identificacion=20;
+input int Velas_Confirmacion=10;
+input Enum_MODO_Busqueda Modo_Busqueda=Modo_only_Close;
+input int Velas_Max_Espera_Operaciones_Contra=15;
+input int Velas_Entre_Operaciones=2;
+input string MODO_EQUITY="*** MODO_EQUITY ***";
+input bool Allow_Equity=true;
+input double DineroEquity=1000;
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+int PeriodoSuperior=0;
+int PeriodoMA_Sup=0;
+string Prefijo_MT2="MS2";
+string Comentario="MST2_EA";
+int Magic=5454123;
+
+int LastBars=0;
+double UltimoPrecioEntrada=0;
+datetime TimeUltimaEntrada=0;
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+  {
+//---
+/*
+   switch(Period())
+     {
+      case 1:
+         PeriodoSuperior=15;
+         break;
+
+      case 5:
+         PeriodoSuperior=30;
+         break;
+
+      case 15:
+         PeriodoSuperior=60;
+         break;
+
+      case 30:
+         PeriodoSuperior=240;
+         break;
+
+      case 60:
+         PeriodoSuperior=1440;
+         break;
+
+      case 240:
+         PeriodoSuperior=10080;
+         break;
+
+      case 1440:
+         PeriodoSuperior=43200;
+         break;
+
+      case 10080:
+         Print("No se puede usar este expert en este TF");
+         ExpertRemove();
+         break;
+
+      case 43200:
+         Print("No se puede usar este expert en este TF");
+         ExpertRemove();
+         break;
+
+     }
+
+   PeriodoMA_Sup=(PeriodoSuperior/Period())*PeriodoMA;
+  
+*/
+   TimeUltimaEntrada=Time[Velas_Entre_Operaciones+1];
+//---
+   return(INIT_SUCCEEDED);
+  }
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+  {
+//---
+
+  }
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+  {
+   if(AllowTrailing) TRAILING_NORMAL_BE();
+   if(Allow_Equity)
+     {
+      if(EQUITY_EA()>DineroEquity)
+        {
+         CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,1,1);
+         Print("Cierre por equity MST");
+        }
+     }
+//Print ("los puntos  son ",PUNTOS_PERCENT());
+/*
+price_process = (22/time}*22/pi
+if price_process =
+*/
+//---
+
+   if(LastBars==Bars)return;
+   else
+     {
+      LastBars=Bars;
+      CALCULATEDORDERS(Prefijo_MT2,Magic,Symbol());
+      int Dire=DIRECCION_BUSQUEDA();
+
+      if(Ticket_B==0 && Ticket_S==0) UltimoPrecioEntrada=0;
+
+      if(Dire==1)
+        {
+         if(Modo_Busqueda==Modo_Close_y_Puntas)
+           {
+            if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
+               (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& MathMin(Open[2],Close[2])-Low[2]>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
+              {
+               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                 {
+                  if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                    {
+                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
+                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
+                     UltimoPrecioEntrada=Ask;
+                     TimeUltimaEntrada=Time[0];
+                    }
+                 }
+              }
+           }
+         if(Modo_Busqueda==Modo_only_Close)
+           {
+            if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))// || (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+              {
+               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                 {
+                  if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                    {
+                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
+                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
+                     UltimoPrecioEntrada=Ask;
+                     TimeUltimaEntrada=Time[0];
+                    }
+                 }
+              }
+           }
+        }
+
+      if(Dire==-1)
+        {
+         if(Modo_Busqueda==Modo_Close_y_Puntas)
+           {
+            if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
+               (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& High[2] - MathMax(Open[2],Close[2])>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
+              {
+               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                 {
+                  if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                    {
+                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
+                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
+                     UltimoPrecioEntrada=Bid;
+                     TimeUltimaEntrada=Time[0];
+                    }
+                 }
+              }
+           }
+         if(Modo_Busqueda==Modo_only_Close)
+           {
+            if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//|| (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+              {
+               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                 {
+                  if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                    {
+                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
+                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
+                     UltimoPrecioEntrada=Bid;
+                     TimeUltimaEntrada=Time[0];
+                    }
+                 }
+              }
+           }
+        }
+
+     }
+  }
+//+------------------------------------------------------------------+
+class MEDIA
+  {
+public:
+   static double VALUEMEDIA(int TF,int Periodo,int Precio,int Shift)
+     {
+      double Med=iMA(NULL,TF,Periodo,0,MODE_EMA,Precio,Shift);
+      return NormalizeDouble(Med,Digits);
+     };
+  };
+//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+int DIRECCION_BUSQUEDA()
+  {
+   int resultado=0;
+   int Alza=0;
+   int Baja=0;
+   int Indeciza=0;
+   for(int i=1;i<=Velas_Identificacion;i++)
+     {
+      if(Close[i]>MEDIA::VALUEMEDIA(0,PeriodoMA,0,i))Alza+=1;
+      if(Close[i]<MEDIA::VALUEMEDIA(0,PeriodoMA,0,i))Baja+=1;
+      if(MathMax(Close[i],Open[i])>MEDIA::VALUEMEDIA(0,PeriodoMA,0,i) && MathMin(Close[i],Open[i])<MEDIA::VALUEMEDIA(0,PeriodoMA,0,i))Indeciza+=1;
+     }
+
+   if(Alza>Velas_Confirmacion) resultado=1;
+   if(Baja>Velas_Confirmacion) resultado=-1;
+//if (Indeciza<=Velas_Confirmacion/4)resultado=0;
+   return resultado;
+  }
+//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|              TRAILING G8T                                       |
+//+------------------------------------------------------------------+
+void TRAILING_NORMAL_BE()
+  {
+   for(int oG=OrdersTotal()-1;oG>=0;oG--)
+     {
+      if(!OrderSelect(oG,SELECT_BY_POS,MODE_TRADES))Print("No se pudo Seleccionar la orden en la parte del code Trailing Normal # 1");
+      else
+        {
+         if(OrderSymbol()==Symbol() && OrderMagicNumber()==Magic && StringSubstr(OrderComment(),0,3)==Prefijo_MT2)
+           {
+            if(OrderType()==0)
+              {
+               ///--------------
+               if(PuntosDistanciaActivaBreakEven>0)
+                 {
+                  double BE=NormalizeDouble(OrderOpenPrice()+(PuntosBE*Point),Digits);
+                  if(((Bid-OrderOpenPrice()>((PuntosDistanciaActivaBreakEven))*Point) && ((OrderStopLoss()<OrderOpenPrice()) || (OrderStopLoss()!=BE && OrderStopLoss()<BE)))
+                     || ((Bid-OrderOpenPrice()>((PuntosDistanciaActivaBreakEven))*Point) && !OrderStopLoss()))
+                    {
+                     double SLT=BE;
+                     if(SLT!=OrderStopLoss() && SLT!=0)
+                       {
+                        if(!OrderModify(OrderTicket(),OrderOpenPrice(),SLT,OrderTakeProfit(),0))Print("No se puede modificar la Orden en el Trailing  2 ",OrderStopLoss(),"  ",SLT);
+                       }
+                    }
+                 }
+               ///------------------  
+               if(((Bid-OrderOpenPrice()>((PuntosActivacion+PuntosTrailing))*Point) && (Bid-OrderStopLoss()>(PuntosTrailing)*Point))
+                  || ((Bid-OrderOpenPrice()>((PuntosActivacion+PuntosTrailing))*Point) && !OrderStopLoss()))
+                 {
+                  double SLT=NormalizeDouble(Bid-((PuntosTrailing)*Point),Digits);
+                  if(SLT!=OrderStopLoss() && SLT!=0)
+                    {
+                     if(!OrderModify(OrderTicket(),OrderOpenPrice(),SLT,OrderTakeProfit(),0))Print("No se puede modificar la Orden en el Trailing  2.1 ",OrderStopLoss(),"  ",SLT);
+                    }
+                 }
+              }
+
+            if(OrderType()==1)
+              {
+               ///-------------------------
+               if(PuntosDistanciaActivaBreakEven>0)
+                 {
+                  double BEv=NormalizeDouble(OrderOpenPrice()-(PuntosBE*Point),Digits);
+                  if(((OrderOpenPrice()-Ask>((PuntosDistanciaActivaBreakEven))*Point) && ((OrderStopLoss()>OrderOpenPrice()) || (OrderStopLoss()!=BEv && OrderStopLoss()>BEv)))
+                     || ((OrderOpenPrice()-Ask>((PuntosDistanciaActivaBreakEven))*Point) && !OrderStopLoss()))
+                    {
+                     double SLTv=BEv;
+                     if(SLTv!=OrderStopLoss() && SLTv!=0)
+                       {
+                        if(!OrderModify(OrderTicket(),OrderOpenPrice(),SLTv,OrderTakeProfit(),0))Print("No se puede modificar la Orden en el Trailing G8T # 3 ",OrderStopLoss(),"  ",SLTv);
+                       }
+                    }
+                 }
+               ///---------------------
+               if(((OrderOpenPrice()-Ask>((PuntosActivacion+PuntosTrailing))*Point) && (OrderStopLoss()-Ask>(PuntosTrailing)*Point))
+                  || ((OrderOpenPrice()-Ask>((PuntosActivacion+PuntosTrailing))*Point) && !OrderStopLoss()))
+                 {
+                  double SLTv=NormalizeDouble(Ask+((PuntosTrailing)*Point),Digits);
+                  if(SLTv!=OrderStopLoss() && SLTv!=0)
+                    {
+                     if(!OrderModify(OrderTicket(),OrderOpenPrice(),SLTv,OrderTakeProfit(),0))Print("No se puede modificar la Orden en el Trailing # 3.1 ",OrderStopLoss(),"  ",SLTv);
+                    }
+                 }
+              }
+           }
+        }
+     }
+  }
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+//|         TRADE DIRECTA                                            |
+//+------------------------------------------------------------------+
+void TRADE_DIRECTA_MST2(string ComentarioEA,string Prefijo,int NumMagic,string Par,double Lotes,char TypeTrade,double SL,double TP)
+  {
+   if(SL>0)SL=SL+MarketInfo(Par,MODE_SPREAD);
+   double Prec_Trade_Dir=0,SL_Trade_Dire=0,TP_Trade_Dire=0;
+   string PosNombre;
+   color ColorTrade=clrNONE;
+
+   if(TypeTrade==0)
+     {
+      Prec_Trade_Dir=MarketInfo(Par,MODE_ASK);
+      if(ModoSL==SL_pips)
+        {
+         SL_Trade_Dire=Prec_Trade_Dir-(SL*Point);
+        }
+      if(ModoSL==SL_MAX_MIN)
+        {
+         int min=iLowest(Symbol(),0,MODE_LOW,Bars_MAX_MIN,1);
+         SL_Trade_Dire=Low[min];
+         if(Bid-SL_Trade_Dire<=((MarketInfo(Symbol(),MODE_SPREAD)*2))*Point)return;
+        }
+      TP_Trade_Dire=Prec_Trade_Dir+(TP*Point);
+      PosNombre="_Com_";
+      ColorTrade=Blue;
+     }
+
+   if(TypeTrade==1)
+     {
+      Prec_Trade_Dir=MarketInfo(Par,MODE_BID);
+      if(ModoSL==SL_pips)
+        {
+         SL_Trade_Dire=Prec_Trade_Dir+(SL*Point);
+        }
+      if(ModoSL==SL_MAX_MIN)
+        {
+         int max=iHighest(Symbol(),0,MODE_HIGH,Bars_MAX_MIN,1);
+         SL_Trade_Dire=High[max];
+         if(SL_Trade_Dire-Ask<=((MarketInfo(Symbol(),MODE_SPREAD)*2))*Point)return;
+        }
+      TP_Trade_Dire=Prec_Trade_Dir-(TP*Point);
+      PosNombre="_Ven_";
+      ColorTrade=Red;
+     }
+   if(ModoSL==SL_pips)
+     {
+      if(SL==0)SL_Trade_Dire=0;
+      if(TP==0)TP_Trade_Dire=0;
+     }
+   int TradeDIRECTo_=OrderSend(Par,TypeTrade,Lotes,Prec_Trade_Dir,10,0,0,Prefijo+PosNombre+ComentarioEA,NumMagic,0,ColorTrade);
+   if(!OrderSelect(TradeDIRECTo_,SELECT_BY_TICKET))
+     {
+      Print("Error en la seleccion de Orden, TradeDirecto  code1 en  ",Prefijo);
+     }
+   else
+     {
+
+      if(SL_Trade_Dire>0 || TP_Trade_Dire>0)
+        {
+         if(!OrderModify(OrderTicket(),OrderOpenPrice(),SL_Trade_Dire,TP_Trade_Dire,0))
+           {
+            Print("Error Numero ",GetLastError()," al hacer la modificacion TradeDirecto  del Ticket ",OrderTicket(),"  en ",Prefijo);
+           }
+        }
+     }
+  }
+//+-----------------------------------------------
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double EQUITY_EA()
+  {
+   double ProfitDelEA=0;
+   for(int oG=OrdersTotal()-1;oG>=0;oG--)
+     {
+      if(!OrderSelect(oG,SELECT_BY_POS,MODE_TRADES))Print("No se pudo Seleccionar la orden en la parte del code EQUITY_EA  # 1");
+      else
+        {
+         if(OrderSymbol()==Symbol() && OrderMagicNumber()==Magic && StringSubstr(OrderComment(),0,3)==Prefijo_MT2)
+           {
+            ProfitDelEA+=OrderProfit()+OrderSwap()+OrderCommission();
+           }
+        }
+     }
+
+   return ProfitDelEA;
+
+  }
+//+------------------------------------------------------------------+
