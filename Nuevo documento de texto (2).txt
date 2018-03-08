@@ -42,8 +42,9 @@ V2.3 Se sigue corrigiendo el alert del filtro 5M
      Se agrega Filtro de Zona Lateral
      Se corrige la vela de rompimiento de nivel, para evitar toques dobles en TF Ppal
 V2.4 Se Corrige error en uno de los Bucles que causaba un bucle infinito y por ello una falla del sistema en general.
-
-si en 5 minutos la vela que toca es de mas de 40 puntos, ya se debe romper con 35.
+V2.5 Se agrega una caracteristica para hacer que cuando se toca con mediana fuerza el nivel, los puntos de roptura sean mayores 
+      (si en 5 minutos la vela que toca es de mas de 40 puntos, ya se debe romper con 35)
+     
 
 */
 //+------------------------------------------------------------------+
@@ -69,6 +70,7 @@ input int PuntosExactitudTFPPAL=5;//0.0
 input int PuntosExactitudTFSecun=5;//0.1
 input int PuntosRopturaOthers=15;//1.0
 input int PuntosRopturaGBP=20;// 1.1
+input int PuntosRopturaCasoFuerza=35;//1.3
 int CruzeNivelContrasentidoCorto=0,CruceNivelSentido=0;
 input int CruceNivelSentidoBajo=80;//2.0
                                    //input int CruceNivelSentidoAlto=120;//2.1
@@ -219,7 +221,8 @@ void OnTick()
          CUADRO_REFERENCE();
 
          //------------------ --           Ultima VELA---     
-         if(UltimaVela==iTime(Symbol(),TimeFrame_PPAL,0)) return;
+         CruzeNivelContrasentidoCorto=PuntosRopturaOthers;
+         if(StringFind(Symbol(),"GBP",0)>=0) CruzeNivelContrasentidoCorto=PuntosRopturaGBP;
 
          for(int i=0;i<ArraySize(Alarmas);i++)
            {
@@ -1253,6 +1256,7 @@ void LECTURA_CUANDO_HAY_VALORES_A_ROMPER(int &Posicion[],int &Tiempo[])
                Pasa=VELA5M_QUE_TOCA_NIVEL_MENOR_Al_TAMA_CORRECTO(Posicion[i],1,Tiempo[i]);
                if(Pasa==true)
                  {
+                 CONFIRMA_PUNTOS_CRUCE_NIVEL_CONTRASENTIDO_CORTO(ValorReferencia);
                   Alarmas[i]++;
                   Alert("CALL PROXIMAMENTE EN ",Symbol()," en precio ",ValorReferencia);
                   Sleep(500);
@@ -1304,6 +1308,7 @@ void LECTURA_CUANDO_HAY_VALORES_A_ROMPER(int &Posicion[],int &Tiempo[])
                Pasa=VELA5M_QUE_TOCA_NIVEL_MENOR_Al_TAMA_CORRECTO(Posicion[i],-1,Tiempo[i]);
                if(Pasa==true)
                  {
+                 CONFIRMA_PUNTOS_CRUCE_NIVEL_CONTRASENTIDO_CORTO(ValorReferencia);
                   Alarmas[i]++;
                   Alert("PUT PROXIMAMENTE EN ",Symbol(),"  en precio ",ValorReferencia);
                   Sleep(500);
@@ -1524,7 +1529,7 @@ void SEND_FILE(string Broker_,string Action,int TF,string Algo,double Precio)
 
       FileClose(handle);
 
-      int handle2=FileOpen("BaseDatos_.txt",FILE_READ|FILE_TXT|FILE_WRITE|FILE_COMMON,",");
+      int handle2=FileOpen("BaseDatos_NEW.txt",FILE_READ|FILE_TXT|FILE_WRITE|FILE_COMMON,",");
       if(handle2>0)
         {
          string Lineas[1]={""};
@@ -1578,7 +1583,7 @@ bool VELA5M_QUE_TOCA_NIVEL_MENOR_Al_TAMA_CORRECTO(int Pos,int direccion,int TF)
 //+------------------------------------------------------------------+
 void GUARDAR_INFO_FILTROS(string Mensaje,string Filtro)
   {
-   int handle2=FileOpen("NO_TRADE_.txt",FILE_READ|FILE_TXT|FILE_WRITE|FILE_COMMON,",");
+   int handle2=FileOpen("NO_TRADE_NEW.txt",FILE_READ|FILE_TXT|FILE_WRITE|FILE_COMMON,",");
    if(handle2>0)
      {
       string Lineas[1]={""};
@@ -1661,3 +1666,14 @@ bool PASA_FILTRO_ZONA_LATERAL(double PrecioNivel,int direccion,int TF,int Pos)
    return retorno;
   }
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void CONFIRMA_PUNTOS_CRUCE_NIVEL_CONTRASENTIDO_CORTO(double Precio)
+{
+if(MathAbs(iOpen(Symbol(),5,0)-Precio)>=(40*Point))
+{
+CruzeNivelContrasentidoCorto=PuntosRopturaCasoFuerza;
+Alert(Symbol()," Se ha Aumentado los puntos de roptura a 35");
+}
+}
