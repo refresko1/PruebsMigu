@@ -27,11 +27,18 @@ enum Enum_MODO_Busqueda
    Modo_only_Close=0,
    Modo_Close_y_Puntas=1
   };
-
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+enum Enum_Sentido
+  {
+   SentidoNormal=0,
+   SentidoOpuesto=1
+  };
 //+------------------------------------------------------------------+
 //|                   INPUTS                                         |
 //+------------------------------------------------------------------+
-
+input Enum_Sentido SentidoTrade=SentidoNormal;
 input int PeriodoMA=34;
 input double Lots=1;
 input double PuntosTP=0;
@@ -55,6 +62,7 @@ input int Velas_Entre_Operaciones=2;
 input string MODO_EQUITY="*** MODO_EQUITY ***";
 input bool Allow_Equity=true;
 input double DineroEquity=1000;
+input double Puntos_Distance_Lateral=30;
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
@@ -161,80 +169,160 @@ if price_process =
 
       if(Ticket_B==0 && Ticket_S==0) UltimoPrecioEntrada=0;
 
-      if(Dire==1)
+      if(SentidoTrade==SentidoNormal)
         {
-         if(Modo_Busqueda==Modo_Close_y_Puntas)
+         if(Dire==1 && DISTANCE_LATERAL()<Puntos_Distance_Lateral)
            {
-            if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
-               (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& MathMin(Open[2],Close[2])-Low[2]>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
+            if(Modo_Busqueda==Modo_Close_y_Puntas)
               {
-               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+               if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
+                  (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& MathMin(Open[2],Close[2])-Low[2]>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
                  {
-                  if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
                     {
-                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
-                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
-                     UltimoPrecioEntrada=Ask;
-                     TimeUltimaEntrada=Time[0];
+                     if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Ask;
+                        TimeUltimaEntrada=Time[0];
+                       }
+                    }
+                 }
+              }
+            if(Modo_Busqueda==Modo_only_Close)
+              {
+               if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))// || (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+                 {
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                    {
+                     if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Ask;
+                        TimeUltimaEntrada=Time[0];
+                       }
                     }
                  }
               }
            }
-         if(Modo_Busqueda==Modo_only_Close)
+
+         if(Dire==-1 && DISTANCE_LATERAL() < Puntos_Distance_Lateral)
            {
-            if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))// || (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+            if(Modo_Busqueda==Modo_Close_y_Puntas)
               {
-               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+               if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
+                  (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& High[2] - MathMax(Open[2],Close[2])>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
                  {
-                  if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
                     {
-                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
-                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
-                     UltimoPrecioEntrada=Ask;
-                     TimeUltimaEntrada=Time[0];
+                     if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Bid;
+                        TimeUltimaEntrada=Time[0];
+                       }
+                    }
+                 }
+              }
+            if(Modo_Busqueda==Modo_only_Close)
+              {
+               if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//|| (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+                 {
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                    {
+                     if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Bid;
+                        TimeUltimaEntrada=Time[0];
+                       }
                     }
                  }
               }
            }
         }
 
-      if(Dire==-1)
+      //-------------------
+      if(SentidoTrade==SentidoOpuesto)
         {
-         if(Modo_Busqueda==Modo_Close_y_Puntas)
+         if(Dire==1 && DISTANCE_LATERAL()<Puntos_Distance_Lateral)
            {
-            if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
-               (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& High[2] - MathMax(Open[2],Close[2])>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
+            if(Modo_Busqueda==Modo_Close_y_Puntas)
               {
-               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+               if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
+                  (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& MathMin(Open[2],Close[2])-Low[2]>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
                  {
-                  if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
                     {
-                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
-                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
-                     UltimoPrecioEntrada=Bid;
-                     TimeUltimaEntrada=Time[0];
+                     if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Bid;
+                        TimeUltimaEntrada=Time[0];
+                       }
+                    }
+                 }
+              }
+            if(Modo_Busqueda==Modo_only_Close)
+              {
+               if(Close[1]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))// || (Low[2]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+                 {
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                    {
+                     if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Bid;
+                        TimeUltimaEntrada=Time[0];
+                       }
                     }
                  }
               }
            }
-         if(Modo_Busqueda==Modo_only_Close)
+
+         if(Dire==-1 && DISTANCE_LATERAL()< Puntos_Distance_Lateral)
            {
-            if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//|| (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+            if(Modo_Busqueda==Modo_Close_y_Puntas)
               {
-               if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Ask>UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Ask<UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+               if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2)) || 
+                  (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//&& High[2] - MathMax(Open[2],Close[2])>(MathMax(Open[2],Close[2])-MathMin(Open[2],Close[2])))))
                  {
-                  if(Ticket_S<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
                     {
-                     CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),1,0,0);
-                     TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,1,PuntosSL,PuntosTP);
-                     UltimoPrecioEntrada=Bid;
-                     TimeUltimaEntrada=Time[0];
+                     if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Ask;
+                        TimeUltimaEntrada=Time[0];
+                       }
+                    }
+                 }
+              }
+            if(Modo_Busqueda==Modo_only_Close)
+              {
+               if(Close[1]<MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,1) && ((Close[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))//|| (High[2]>MEDIA::VALUEMEDIA(0,PeriodoMA,PRICE_CLOSE,2))))
+                 {
+                  if((UltimoPrecioEntrada==0) || (UltimoPrecioEntrada>0 && Bid<UltimoPrecioEntrada) || (UltimoPrecioEntrada>0 && Bid>UltimoPrecioEntrada && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>=Velas_Max_Espera_Operaciones_Contra))
+                    {
+                     if(Ticket_B<MaxTrades && iBarShift(Symbol(),0,TimeUltimaEntrada,true)>Velas_Entre_Operaciones)
+                       {
+                        CIERRE_ALL_(Prefijo_MT2,Magic,Symbol(),0,1,0);
+                        TRADE_DIRECTA_MST2(Comentario,Prefijo_MT2,Magic,Symbol(),Lots,0,PuntosSL,PuntosTP);
+                        UltimoPrecioEntrada=Ask;
+                        TimeUltimaEntrada=Time[0];
+                       }
                     }
                  }
               }
            }
         }
-
      }
   }
 //+------------------------------------------------------------------+
@@ -433,3 +521,20 @@ double EQUITY_EA()
 
   }
 //+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double DISTANCE_LATERAL()
+{
+double MaxD=0;
+double MinD=1000000;
+for(int i=1;i<=40;i++)
+  {
+  double MediaX=iMA(Symbol(),0,PeriodoMA,0,MODE_EMA,PRICE_CLOSE,i);
+  if(MediaX >  MaxD)MaxD=MediaX;
+  if(MediaX <  MinD)MinD=MediaX;
+  }
+  
+ 
+  return ((MaxD-MinD)/Point);
+}
